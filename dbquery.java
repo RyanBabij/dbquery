@@ -30,16 +30,17 @@ public class dbquery
         	   System.out.println("Error: Bad search query.");
         	   System.exit(1);
            }
+           strSearch=strSearch.toUpperCase(); // make searches case-insensitive
            
            try
            {
                 pageSize = Integer.parseInt(args[1]);
-            }
-            catch (NumberFormatException nfe)
+           }
+           catch (NumberFormatException nfe)
            {
                 System.out.println("Error: Pagesize must be an integer.");
                 System.exit(1);
-            }
+           }
            file = file + args[1];
            
            System.out.println("Using heapfile: "+file);
@@ -56,7 +57,125 @@ public class dbquery
         	// if the column is column 4, then build a string and check if
         	// search string is subset of column.
         	
+        	// start timer
+        	long startTime = System.nanoTime();
         	
+        	// ignore newlines. commas mean next column (nColumns is hardcoded)
+
+        	
+        	// current field we are building to scan string.
+        	String currentScan = "";
+        	String currentRecord = "";
+        	
+        	int currentColumn = 0;
+        	int SEARCH_COLUMN = 4;
+        	int N_COLUMN = 19;
+        	
+        	boolean quotes=false; // flag to ignore commas in quotes
+        	boolean intColumn; // if the column is an integer, we must ignore newlines and commas
+        	// if they are part of the binary data
+        	
+        	boolean searchMatch=false; // flip to true if search string matches column.
+        	
+            int byteRead;
+            while (true)
+            {
+            	byteRead = fileIn.read(); // -1 means EOF
+            	if ((quotes==false && byteRead == ',') || byteRead=='\n' || byteRead == -1 ) // delimiter or end of file (process final entry)
+            	{
+            		System.out.println("NEW COL: "+currentColumn);
+            		System.out.println("record so far: "+currentRecord);
+            		
+            		if (currentColumn == SEARCH_COLUMN)
+            		{
+            			// this is a column we want to search
+            			// do string match
+            			System.out.println("Running search. Comparing: "+strSearch+" with: "+currentScan.toUpperCase());
+            			
+            			String upperScan = currentScan.toUpperCase();
+            			
+            			if ( upperScan.contains(strSearch))
+            			{
+            				System.out.println("MATCH");
+            				searchMatch=true;
+            				// flag the match and wait until all data has been read in.	
+            			}
+            		}
+            		
+            		
+            		// increment counter to next column or reset to first column
+            		++currentColumn;
+            		if (currentColumn>=N_COLUMN || byteRead=='\n')
+            		{
+            			if (searchMatch)
+            			{
+            				// this record is a match, so we print it and exit.
+            				System.out.println("Match found: "+currentRecord);
+            				
+            				// break the record up and print it as either int or string.
+            				// we can just assume it's 
+            			
+            	            // stop timer
+            	    		long endTime = System.nanoTime();
+
+            	    		long totalNanoseconds = endTime - startTime;
+            	    		long totalMilliseconds = totalNanoseconds/1000000;
+
+            	    		System.out.println("Search took "+totalMilliseconds+" milliseconds.");
+            	    		System.out.println("Exiting program.");
+            				return;
+            			}
+            			
+            			currentColumn=0;
+            			
+            			System.out.println("Wiping search string: "+currentScan);
+            			System.out.println("Wiping record string: "+currentRecord);
+            			
+            			//wipe record and search strings
+            			currentScan="";
+            			currentRecord="";
+            		}
+            		else
+            		{
+            			currentRecord+=",";
+            		}
+            		
+            		if (byteRead==-1)
+            		{
+            			break;
+            		}
+            		
+            	}
+            	else if (byteRead == 13 )
+            	{
+            		//Ignore errant \r newline
+            	}
+            	else
+            	{
+            		// do we need to read this column in?
+            		// build the string
+            		if (currentColumn==SEARCH_COLUMN)
+            		{
+            			currentScan+=(char)byteRead;
+            		}
+            		currentRecord+=(char)byteRead;
+            		
+            		if (byteRead=='"') // flip flag to ignore commas in quotes
+            		{
+            			quotes=!quotes;
+            		}
+            
+            	}
+            }
+            // stop timer
+    		long endTime = System.nanoTime();
+
+    		long totalNanoseconds = endTime - startTime;
+    		long totalMilliseconds = totalNanoseconds/1000000;
+
+    		System.out.println("Building name not found.");
+    		System.out.println("Search took "+totalMilliseconds+" milliseconds.");
+    		System.out.println("Exiting program.");
         }
         catch (IOException ex)
         {
