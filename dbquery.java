@@ -2,9 +2,17 @@ import java.io.*; // file operations
 import java.util.Vector; // vectors obvs
 import java.util.concurrent.TimeUnit; //code execution timing
 import java.nio.ByteBuffer; // convert int to bytes
+import java.util.StringTokenizer; // break up record result into fields
+import java.util.List; // list of column indices
+
 
 public class dbquery
 {
+	// returns true if this column should be a number
+	static public boolean isNumericColumn(int iColumn)
+	{
+		return (iColumn==0 || iColumn==1 || iColumn==2 || iColumn==3 || iColumn==7 || iColumn==8 || iColumn==9 || iColumn==13);
+	}
 
     public static void main(String[] args)
     {
@@ -81,7 +89,8 @@ public class dbquery
             while (true)
             {
             	byteRead = fileIn.read(); // -1 means EOF
-            	if ((quotes==false && byteRead == ',') || byteRead=='\n' || byteRead == -1 ) // delimiter or end of file (process final entry)
+
+            	if ((quotes==false && byteRead == ',') || (isNumericColumn(currentColumn)==false && byteRead=='\n') || byteRead == -1 ) // delimiter or end of file (process final entry)
             	{
             		System.out.println("NEW COL: "+currentColumn);
             		System.out.println("record so far: "+currentRecord);
@@ -90,13 +99,13 @@ public class dbquery
             		{
             			// this is a column we want to search
             			// do string match
-            			System.out.println("Running search. Comparing: "+strSearch+" with: "+currentScan.toUpperCase());
+            			//System.out.println("Running search. Comparing: "+strSearch+" with: "+currentScan.toUpperCase());
             			
             			String upperScan = currentScan.toUpperCase();
             			
             			if ( upperScan.contains(strSearch))
             			{
-            				System.out.println("MATCH");
+            				//System.out.println("MATCH");
             				searchMatch=true;
             				// flag the match and wait until all data has been read in.	
             			}
@@ -112,9 +121,76 @@ public class dbquery
             				// this record is a match, so we print it and exit.
             				System.out.println("Match found: "+currentRecord);
             				
-            				// break the record up and print it as either int or string.
-            				// we can just assume it's 
-            			
+            				// tokenise the string by commas, strip page nulls, convert ints
+            				System.out.println("Tokenising");
+            				//StringTokenizer toke = new StringTokenizer(currentRecord, ",");
+            				Vector <String> vToken = new Vector();
+            				
+            				/// have to tokenise manually to account for commas in quotes
+            				boolean quotes2=false;
+            				String strToke="";
+            				for (int i=0;i<currentRecord.length();++i)
+            				{
+            					if ( currentRecord.charAt(i)=='"')
+            					{
+            						quotes2=!quotes2;
+            					}
+            					else if (quotes2==false && currentRecord.charAt(i)==',')
+            					{
+            						//delimiter
+            						vToken.add(strToke);
+            						strToke="";
+            					}
+            					else
+            					{
+            						strToke+=currentRecord.charAt(i);
+            					}
+            				}
+            				
+            				// a string will have all nulls stripped because a string doesn't need them.
+            				// an int will have leading nulls stripped until only the 4 bytes remain.
+            				// using CSV the datatypes must be known ahead of time, so they will be hardcoded.
+            				for (int i=0;i<vToken.size();++i)
+            				{
+            					if (isNumericColumn(i))
+            					{
+            						
+            						//System.out.println("NUMBER: "+vToken.get(i));
+            						String num = vToken.get(i);
+            						
+            						if (num.length()<4)
+            						{
+            							// null field
+            							System.out.println("NUM: NULL");
+            						}
+            						else
+            						{
+	            						// pull the rightmost 4 bytes and convert to int
+	            						
+	            						int excessChars = num.length() - 4;
+	            						String strippedNum = num.substring(excessChars);
+
+	            						byte aByte[];
+	            						aByte = new byte [4];
+	            						aByte[0]=(byte)num.charAt(num.length()-4);
+	            						aByte[1]=(byte)num.charAt(num.length()-3);
+	            						aByte[2]=(byte)num.charAt(num.length()-2);
+	            						aByte[3]=(byte)num.charAt(num.length()-1);
+	            						
+	            						ByteBuffer wrapped = ByteBuffer.wrap(aByte); // big-endian by default
+	            						int num2 = wrapped.getInt();
+	            						
+	            						System.out.println("NUM: "+num2);
+            						}
+            					}
+            					else
+            					{
+            						// strip all nulls from string and print as-is
+            						String strOut = vToken.get(i).replace("\0", ""); // strip all nulls from string
+            						System.out.println("STRANG: "+strOut);
+            					}
+            				}
+
             	            // stop timer
             	    		long endTime = System.nanoTime();
 
