@@ -45,5 +45,22 @@ public class dbquery
            System.out.println("Using heapfile: "+file);
 
         }
+        
+        
+        // load in the heap file
+        try (InputStream fileIn = new FileInputStream(file);)
+        {
+        	System.out.println("Reading in file: "+file);
+        	
+        	// scan through the heap file looking for comma delimiters.
+        	// if the column is column 4, then build a string and check if
+        	// search string is subset of column.
+        	
+        	
+        }
+        catch (IOException ex)
+        {
+            System.out.println("Error loading heap file.");
+        }
     }
 }
